@@ -4,11 +4,11 @@ import urllib.parse
 from sqlalchemy import create_engine
 
 # --- 0. CONNECTION SETUP ---
-user = "root"
-raw_password = "12410279"
-password = urllib.parse.quote_plus(raw_password)
-host = "localhost"
-db = "smart_planner"
+# user = "root"
+# raw_password = "12410279"
+# password = urllib.parse.quote_plus(raw_password)
+# host = "localhost"
+# db = "smart_planner"
 
 engine = create_engine(f"mysql+pymysql://{user}:{password}@{host}/{db}")
 
