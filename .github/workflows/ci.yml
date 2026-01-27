@@ -1,0 +1,31 @@
+name: Python CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests (if exist)
+        run: |
+          if [ -d "backend/tests" ]; then pytest backend/tests; else echo "No backend tests"; fi
+
+      - name: Validate ML model (if exist)
+        run: |
+          if [ -f "ml/validation.py" ]; then python ml/validation.py; else echo "No ML validation script"; fi
