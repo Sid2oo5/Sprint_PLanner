@@ -20,30 +20,30 @@ engine = create_engine(f"mysql+pymysql://{user}:{password}@{host}/{db}")
 print("🚀 Starting Phase 1: Full Database Population...")
 
 # --- 1. TABLE: DEVELOPERS ---
-devs_data = [
-    {'dev_id': 1, 'name': 'Alice', 'experience_level': 'Senior', 'primary_skill': 'Backend'},
-    {'dev_id': 2, 'name': 'Bob', 'experience_level': 'Junior', 'primary_skill': 'Frontend'},
-    {'dev_id': 3, 'name': 'Charlie', 'experience_level': 'Mid', 'primary_skill': 'API'},
-    {'dev_id': 4, 'name': 'David', 'experience_level': 'Senior', 'primary_skill': 'DevOps'},
-    {'dev_id': 5, 'name': 'Eve', 'experience_level': 'Junior', 'primary_skill': 'UI/UX'},
-    {'dev_id': 6, 'name': 'Frank', 'experience_level': 'Mid', 'primary_skill': 'Backend'},
-    {'dev_id': 7, 'name': 'Grace', 'experience_level': 'Senior', 'primary_skill': 'Frontend'},
-    {'dev_id': 8, 'name': 'Heidi', 'experience_level': 'Junior', 'primary_skill': 'API'},
-    {'dev_id': 9, 'name': 'Ivan', 'experience_level': 'Mid', 'primary_skill': 'Database'},
-    {'dev_id': 10, 'name': 'Judy', 'experience_level': 'Senior', 'primary_skill': 'Security'}
-]
+skills = ['Backend', 'Frontend', 'API', 'DevOps', 'UI/UX', 'Database', 'Security', 'Mobile']
+levels = ['Junior', 'Mid', 'Senior']
+
+devs_data = []
+for i in range(1, 151):  # Generate 150 developers
+    devs_data.append({
+        'dev_id': i,
+        'name': f'Developer_{i}',
+        'experience_level': random.choice(levels),
+        'primary_skill': random.choice(skills)
+    })
 df_devs = pd.DataFrame(devs_data)
+print(f"✅ Generated {len(df_devs)} developers.")
 
 # --- 2. TABLE: SPRINT_CONTEXT ---
 # Simulating the last 5 sprints
 sprints_data = []
-for i in range(1, 30):
+for i in range(1, 160):
     sprints_data.append({
         'sprint_id': i,
         'team_load_percentage': random.choice([80, 90, 100, 110]), 
-        'is_holiday_season': 1 if i == 5 else 0 
+        'is_holiday_season': 1 if i%25 == 0 else 0 
     })
-df_sprints = pd.DataFrame(sprints_data)
+df_sprints = pd.DataFrame(sprints_data) 
 
 # --- 3. TABLE: HISTORICAL_TASKS (With Failure Logic) ---
 tasks_data = []
@@ -83,25 +83,39 @@ for i in range(1, 2001):
     })
 df_tasks = pd.DataFrame(tasks_data)
 
-# --- 4. PUSHING TO MYSQL (Corrected Order) ---
+# --- 4. NEW TABLE: SPRINT_TABLE (The 600 New Tasks to be assigned) ---
+print("📝 Generating 600 unassigned tasks for the upcoming sprint...")
+new_tasks = []
+for i in range(1, 601):
+    new_tasks.append({
+        'task_id': i,
+        'story_points': random.choice([1, 2, 3, 5, 8]),
+        'priority': random.choice(['High', 'Medium', 'Low']),
+        'status': 'Unassigned' # AI will change this later
+    })
+df_sprint_table = pd.DataFrame(new_tasks)
+
+# --- 5. PUSHING TO MYSQL (Unified Order) ---
 try:
-    # We must drop the "Child" table (tasks) first because it depends on the others
-    # Then we drop and recreate the "Parent" tables (devs and sprints)
+    print("⏳ Clearing and updating tables for Enterprise Scale...")
     
-    print("⏳ Clearing and updating tables...")
-    
-    # Push Parents First
+    # 1. Push Developers (Parent)
     df_devs.to_sql('developers', con=engine, if_exists='replace', index=False)
-    print("✅ Table 1: 'developers' updated.")
+    print("✅ Table 1: 'developers' (150 rows) updated.")
     
+    # 2. Push Sprint Context (Parent)
     df_sprints.to_sql('sprint_context', con=engine, if_exists='replace', index=False)
-    print("✅ Table 2: 'sprint_context' updated.")
+    print("✅ Table 2: 'sprint_context' (160 rows) updated.")
     
-    # Push Child Last
+    # 3. Push Historical Tasks (Child - Depends on Devs and Sprints)
     df_tasks.to_sql('historical_tasks', con=engine, if_exists='replace', index=False)
-    print("✅ Table 3: 'historical_tasks' updated.")
+    print("✅ Table 3: 'historical_tasks' (2000 rows) updated.")
     
-    print("\n🎉 PHASE 1 COMPLETE! All 3 tables populated.")
+    # 4. Push Sprint Table (The Current Backlog)
+    df_sprint_table.to_sql('sprint_table', con=engine, if_exists='replace', index=False)
+    print("✅ Table 4: 'sprint_table' (600 rows) updated.")
+    
+    print("\n🎉 ALL SYSTEMS GO! Database is fully populated for Enterprise Testing.")
 
 except Exception as e:
-    print(f"❌ Error: {e}")
+    print(f"❌ Error during database push: {e}")

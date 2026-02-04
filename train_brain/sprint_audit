@@ -1,0 +1,73 @@
+import pandas as pd
+from sqlalchemy import create_engine
+import os
+import urllib.parse
+from dotenv import load_dotenv
+
+# --- 1. SECURE CONNECTION ---
+load_dotenv()
+user = os.getenv("DB_USER")
+password = urllib.parse.quote_plus(os.getenv("DB_PASSWORD"))
+host = os.getenv("DB_HOST")
+db = os.getenv("DB_NAME")
+
+engine = create_engine(f"mysql+pymysql://{user}:{password}@{host}/{db}")
+
+def run_audit():
+    # 2. FETCH DATA
+    query = """
+        SELECT s.task_id, s.story_points, s.assigned_to, s.predicted_hours, d.experience_level
+        FROM sprint_table s
+        JOIN developers d ON s.assigned_to = d.name
+        WHERE s.status = 'Assigned'
+    """
+    df = pd.read_sql(query, con=engine)
+    
+    if df.empty:
+        print("❌ No assigned tasks found. Did you run the Assigner script?")
+        return
+
+    # 3. AGGREGATE PER DEVELOPER
+    audit = df.groupby('assigned_to').agg({
+        'task_id': 'count',
+        'predicted_hours': 'sum',
+        'experience_level': 'first'
+    }).rename(columns={'task_id': 'task_count'})
+
+    # 4. FIND ANOMALIES
+    # Overloaded: > 40 hours
+    overloaded = audit[audit['predicted_hours'] > 40]
+    
+    # Underutilized: < 10 hours (assuming we want everyone busy)
+    underutilized = audit[audit['predicted_hours'] < 10]
+
+    # 5. OUTPUT REPORT
+    print("="*50)
+    print("🚀 SPRINT AUDIT REPORT")
+    print("="*50)
+    print(f"Total Tasks Assigned:   {len(df)}")
+    print(f"Total Developers Used: {len(audit)} / 150")
+    print(f"Avg Hours per Dev:     {audit['predicted_hours'].mean():.2f}h")
+    print("-" * 50)
+    
+    if not overloaded.empty:
+        print(f"⚠️  WARNING: {len(overloaded)} developers are overloaded (>40h)!")
+        print(overloaded[['predicted_hours', 'task_count']].head())
+    else:
+        print("✅ No developers are overloaded.")
+
+    if not underutilized.empty:
+        print(f"\nℹ️  INFO: {len(underutilized)} developers are underutilized (<10h).")
+    
+    print("-" * 50)
+    
+    # 6. QUALITY CHECK: Who is doing the 8-pointers?
+    seniors_on_hard_tasks = df[(df['story_points'] >= 5) & (df['experience_level'] == 'Senior')]
+    juniors_on_hard_tasks = df[(df['story_points'] >= 8) & (df['experience_level'] == 'Junior')]
+    
+    print(f"🎯 Seniors handling Big Rocks (5-8 pts): {len(seniors_on_hard_tasks)}")
+    print(f"🚩 Juniors handling Max Risk (8 pts):    {len(juniors_on_hard_tasks)}")
+    print("="*50)
+
+if __name__ == "__main__":
+    run_audit()
