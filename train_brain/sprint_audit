@@ -24,7 +24,7 @@ def run_audit():
     df = pd.read_sql(query, con=engine)
     
     if df.empty:
-        print("❌ No assigned tasks found. Did you run the Assigner script?")
+        print("No assigned tasks found. Did you run the Assigner script?")
         return
 
     # 3. AGGREGATE PER DEVELOPER
@@ -57,7 +57,7 @@ def run_audit():
         print("✅ No developers are overloaded.")
 
     if not underutilized.empty:
-        print(f"\nℹ️  INFO: {len(underutilized)} developers are underutilized (<10h).")
+        print(f"\n INFO: {len(underutilized)} developers are underutilized (<10h).")
     
     print("-" * 50)
     

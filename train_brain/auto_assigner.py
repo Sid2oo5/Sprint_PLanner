@@ -4,9 +4,14 @@ import numpy as np
 from sqlalchemy import create_engine, text
 import urllib.parse
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv();
+BASE_DIR = Path(__file__).resolve().parent  # /train_brain
+MODEL_DIR = BASE_DIR.parent
+
+
 user = os.getenv("DB_USER", "root")
 password = urllib.parse.quote_plus(os.getenv("DB_PASSWORD"))
 engine = create_engine(f"mysql+pymysql://{user}:{password}@localhost/smart_planner")
@@ -19,9 +24,12 @@ with engine.begin() as conn:
     try: conn.execute(text("ALTER TABLE sprint_table ADD COLUMN predicted_hours FLOAT"))
     except: pass # Column already exists
 
-# 2. Load Brains & Data
-time_model = joblib.load('time_model.pkl')
-risk_model = joblib.load('risk_model.pkl')
+try:
+    time_model = joblib.load(MODEL_DIR / 'time_model.pkl')
+    risk_model = joblib.load(MODEL_DIR / 'risk_model.pkl')
+    print("✅ Auto-Assigner: Models loaded successfully from Root.")
+except Exception as e:
+    print(f"❌ Auto-Assigner Model Error: {e}")
 
 tasks_df = pd.read_sql("SELECT * FROM sprint_table WHERE status = 'Unassigned'", con=engine)
 devs_df = pd.read_sql("SELECT * FROM developers", con=engine)
